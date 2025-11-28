@@ -1,98 +1,110 @@
-# Secret Resume Filter · Zama FHEVM
+# Hidden Code Quality — Aggregate-Only Scoring (Zama FHEVM)
 
-Privacy-first recruiting on-chain. Candidates submit **encrypted** résumé attributes; the contract returns only a single **encrypted verdict** (FIT / NO FIT). Employers decrypt the verdict with **userDecrypt** via Zama’s Relayer SDK, while raw inputs and criteria remain private.
+**One‑line**: Encrypted code metrics in, **public aggregate** out. Individual submissions stay private; only the global sum (and off‑chain average) are revealed.
 
-> **Network**: Sepolia
-> **Contract (deployed)**: `0x12D716b26D896adC8994eFe4b36f11EF37158D96`
-> **Relayer SDK**: `@zama-fhe/relayer-sdk` v0.2.0
-> **Solidity**: 0.8.24 with `viaIR: true`, optimizer enabled
+## Why
 
----
-
-## Overview
-
-**Secret Resume Filter** is a minimal, production-style FHEVM dApp:
-
-* **Employers** create positions and upload **encrypted criteria** (min experience, min education, required skills bitmask, max salary).
-* **Candidates** submit **encrypted applications** (same fields, encrypted locally in the browser).
-* The contract evaluates everything **homomorphically** and emits a handle for an **encrypted verdict**.
-* **Only the employer** gets decryption rights for the verdict (user-level EIP‑712 auth with Relayer SDK).
-
-This lets teams pre-screen candidates without revealing sensitive compensation expectations or personal data on-chain.
+Security reviews often want a *team‑level* health signal without exposing per‑author details. This dApp lets contributors submit **encrypted** metrics (coverage/style/complexity/bugs). The contract computes a private score per submission and **aggregates** them. Only the **aggregate sum** is made publicly decryptable; no personal breakdown is ever revealed onchain.
 
 ---
 
-## Core Features
+## Main Features
 
-* 🔒 Fully encrypted inputs & criteria (Zama FHE Solidity lib).
-* ✅ Binary result only: **FIT / NO FIT** (as `ebool`).
-* 👤 Access control with `FHE.allow` — employer-only decryption.
-* 🧩 Bitmask skill check: `(skills & required) == required`.
-* 🔧 Clean separation of roles (Owner → creates positions, Employer → manages criteria, Candidate → applies).
-* ⚙️ Works with Relayer SDK v0.2.0 (WASM workers enabled).
+* **Private inputs**: Users encrypt 4 metrics locally via Relayer SDK 0.2.0, then call `submitMetrics(...)` with attested handles.
+* **Encrypted policy** (owner): Upload threshold policy using `setPolicyEncrypted(...)`; optionally mark policy as public for auditability.
+* **Aggregate‑only output**: The contract tracks `sumScore` and `submissions`. Owner (or anyone, per your contract) can `publishSum()` → the sum handle becomes globally decryptable; the UI computes **average = sum / submissions** off‑chain.
+* **No plain dev paths**: Frontend ships **without** any "Set Plain (dev)" flow.
+* **Clean UX**: Minimal editorial design, clear logs, Sepolia autoswitch, defensive input validation.
+
+> **Scoring (example implementation)**: Each satisfied check (cov≥min, style≥min, compl≤max, bugs≤max) adds **25 points** → per‑submission score ∈ {0,25,50,75,100}. (Adjust if your deployed contract differs.)
 
 ---
 
-## Smart Contract
+## Repository Layout
 
-* File: `contracts/SecretResumeFilter.sol`
-* Inherits: `SepoliaConfig` from `@fhevm/solidity`
-* Uses only official Zama Solidity library: `@fhevm/solidity/lib/FHE.sol`
-
-### Main storage
-
-```solidity
-struct Criteria {
-  euint8  minExp;          // candidate.yearsExp >= minExp
-  euint8  minEdu;          // candidate.eduLevel >= minEdu
-  euint16 requiredSkills;  // (skills & required) == required
-  euint32 maxSalary;       // candidate.expSalary <= maxSalary
-  address employer;        // decrypt rights holder
-  bool    exists;
-}
+```
+frontend/
+  public/
+    index.html   # This app (vanilla ESM). No build step required.
 ```
 
-### Key functions
+---
 
-* `createPosition(uint256 positionId, address employer)` — owner creates/assigns a position to an employer.
-* `setCriteriaEncrypted(positionId, minExp, minEdu, reqSkills, maxSalary, proof)` — employer sets **encrypted** criteria via Relayer SDK.
-* `setCriteriaPlain(positionId, ...)` — dev helper; converts clear values to encrypted on-chain (avoid in prod).
-* `makeCriteriaPublic(positionId)` — demo helper to mark criteria publicly decryptable.
-* `getCriteriaHandles(positionId)` — returns `bytes32` handles for off-chain audits.
-* `evaluateApplication(positionId, yearsExp, eduLevel, skillsMask, expSalary, proof)` — returns encrypted `ebool` verdict; grants decryption right to the employer.
+## Prerequisites
 
-> The `evaluateApplication` implementation aggregates conditions progressively inside scoped blocks to avoid `Stack too deep` and keeps gas reasonable.
-
-### Events
-
-* `PositionCreated(positionId, employer)`
-* `CriteriaUpdated(positionId, minExpH, minEduH, requiredSkillsH, maxSalaryH)`
-* `ApplicationEvaluated(positionId, candidate, employer, verdictHandle)`
+* Node 18+ (for running a static server, optional)
+* Browser wallet (MetaMask)
+* Sepolia account with gas
 
 ---
 
-## Frontend
+## Quick Start (Serve Static)
 
-* Single-file app
-* Location: **`frontend/public/index.html`** (no build tools required; pure ESM and CDN).
-* Tech: Ethers v6 + Relayer SDK v0.2.0.
-* Design: neon-glass dark UI with skill chips, event scanning & one-click decrypt.
+You can open the HTML directly, but for WASM workers and EIP‑712 flows a local server is recommended.
 
-**What it does:**
+```bash
+# from repo root
+# 1) serve the public folder (pick one)
+# a) using npx http-server
+npx http-server frontend/public -p 5173 --cors
+# b) using python
+python3 -m http.server --directory frontend/public 5173
 
-1. Connects wallet and initializes Relayer SDK (`initSDK()` → `createInstance(...)`).
-2. Employer flow: create position → set encrypted criteria → scan `ApplicationEvaluated` → **userDecrypt** verdict.
-3. Candidate flow: pick position → encrypt 4 fields → submit → employer later decrypts the verdict.
+# 2) open
+http://localhost:5173
+```
+
+The page will:
+
+1. Connect wallet → autoswitch to Sepolia.
+2. Initialize Relayer SDK (0.2.0) against the hosted testnet relayer.
+3. Bind to contract `0x4A8b95…112f` via Ethers v6.
+
+---
+
+## How to Use (UI)
+
+**As a contributor**
+
+1. Open the app, click **Connect Wallet**.
+2. In **Submit Encrypted Metrics**, enter integers 0..100 for: Coverage, Style, Complexity, Bugs.
+3. Click **Submit Metrics (Encrypted)**. The UI creates an encrypted input buffer, gets handles + proof, and sends the tx.
+4. Check the status panel and TX hash.
+
+**As owner (policy management)**
+
+1. In **Policy (Thresholds)**, fill `tCovMin`, `tStyleMin`, `tComplMax`, `tBugsMax` (0..100).
+2. Click **Set Encrypted** → uploads thresholds as ciphertexts.
+3. (Optional) **Make Policy Public** for transparent audits.
+
+**Publishing & reading aggregate**
+
+1. Click **Publish Sum (public)** → the contract marks `sumScore` for public decryption.
+2. Click **Decrypt Sum** → frontend calls `publicDecrypt` via Relayer → shows **Avg** = `sum / submissions`.
+
+---
+
+## Configuration
+
+The defaults are embedded in `index.html`:
+
+* **Contract**: `0x4A8b95270369De027a34E02b49FFe1D49d97112f`
+* **Network**: Sepolia (chain id `0xaa36a7`)
+* **Relayer URL**: `https://relayer.testnet.zama.cloud`
+
+If you need to change them, edit the constants at the top of the script block.
+
+---
 
 
-## Security
+## Roadmap / Ideas
 
-* This project demonstrates encrypted comparisons using FHEVM. Always audit before production use.
-* Keep Relayer SDK versions pinned (here: v0.2.0).
-* Never log plaintext candidate data; UI encrypts client-side prior to any chain call.
+* Export CSV of decrypted aggregate history.
+* Multi‑policy versions + time windows.
+* Per‑team namespaces with the same aggregate‑only guarantee.
 
 ---
 
 ## License
 
-MIT — see `LICENSE` file.
+MIT (project code). Zama SDKs/libraries are under their respective licenses.

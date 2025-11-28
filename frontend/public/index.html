@@ -6,602 +6,359 @@
   <!-- Required for Relayer WASM workers -->
   <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin"/>
   <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp"/>
+  <title>Hidden Code Quality · Zama FHEVM</title>
+  <meta name="description" content="Aggregate-only, blind code quality scoring. Encrypted metrics in, public sum out. Zama FHEVM + Relayer SDK 0.2.0."/>
 
-  <title>Secret Resume Filter · Zama FHEVM</title>
-
-  <!-- Unique look: Space Grotesk + DM Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-
+  <!-- Distinct visual: light clay + editorial grid -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Satoshi:wght@400;700;900&family=Fraunces:opsz,wght@9..144,700;9..144,900&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet"/>
   <style>
     :root{
-      --bg: #0a0c12;
-      --ink: #e7ecf3;
-      --muted:#8b93a7;
-      --glass:#111521;
-      --line:#1b2030;
-      --neon:#7cfff3;
-      --vio:#a291ff;
-      --rose:#ff7a9e;
-      --lime:#8aff63;
-      --amber:#ffcc66;
-      --rad: 18px;
-      --shadow: 0 14px 50px rgba(0,0,0,.45);
-      --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --sans: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      --bg:#f4f6f8; --paper:#ffffff; --ink:#0f172a; --muted:#5b6677; --line:#e6e9ee;
+      --tea:#2f9e44; --rose:#e03131; --citrus:#ffb703; --sea:#1971c2; --lav:#845ef7;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      --sans:"Satoshi",system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;
+      --serif:"Fraunces",Georgia,serif; --r:18px; --shadow:0 18px 50px rgba(15,23,42,.08);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{
-      margin:0; color:var(--ink); font-family:var(--sans); background: radial-gradient(1200px 600px at -10% -10%, #142038 0%, transparent 60%), radial-gradient(1000px 800px at 110% -20%, #1e1028 0%, transparent 55%), var(--bg);
-    }
-    header{
-      position:sticky; top:0; z-index:10;
-      display:flex; align-items:center; justify-content:space-between; gap:16px;
-      padding:14px clamp(16px, 3vw, 32px);
-      background: rgba(9,12,18,.65);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--line);
-    }
-    .brand{display:flex; align-items:center; gap:12px}
-    .orb{
-      width:42px; height:42px; border-radius:50%;
-      background:
-        conic-gradient(from 180deg, #0ef, #9f6, #c7f, #0ef);
-      filter: blur(.3px) saturate(120%);
-      box-shadow: 0 0 0 2px rgba(255,255,255,.05), 0 0 40px rgba(124,255,243,.25) inset;
-    }
-    h1{margin:0; font-size:18px; letter-spacing:.2px; font-weight:700}
-    .sub{color:var(--muted); font-weight:600; font-size:12px}
-    .chip{
-      font:700 12px var(--mono);
-      color:#0b1320; background:linear-gradient(90deg, var(--neon), #b5fffb 70%);
-      border-radius:999px; padding:8px 12px; border:none; cursor:pointer;
-      box-shadow: 0 6px 24px rgba(124,255,243,.25);
-    }
-    .chip.ghost{
-      background:transparent; color:var(--ink);
-      border:1px dashed #293149;
-      box-shadow:none;
-    }
-    main{max-width:1180px; margin:28px auto 80px; padding:0 18px}
-    .hero{
-      display:grid; grid-template-columns:1.1fr .9fr; gap:22px; align-items:stretch;
-    }
-    @media (max-width: 1020px){ .hero{ grid-template-columns:1fr; } }
+    body{margin:0;background:linear-gradient(180deg,#f7f8fb,#f4f6f8);color:var(--ink);font-family:var(--sans)}
+    header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+    .bar{max-width:1180px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:12px}
+    .seal{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font:900 13px var(--mono);color:#fff;background:conic-gradient(from 210deg,#1971c2,#845ef7,#2f9e44,#1971c2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+    .title{margin:0;font:900 22px var(--serif);letter-spacing:.2px}
+    .subtitle{margin:0;color:var(--muted);font:700 12px var(--mono)}
 
-    .panel{
-      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.0)),
-                  radial-gradient(400px 160px at 20% -20%, rgba(167,145,255,.10), transparent 60%),
-                  radial-gradient(360px 160px at 110% 10%, rgba(124,255,243,.08), transparent 60%),
-                  var(--glass);
-      border:1px solid var(--line); border-radius: var(--rad);
-      box-shadow: var(--shadow);
-      padding: 18px clamp(16px, 2.2vw, 22px);
-    }
-    .panel h2{ margin:0 0 10px; font-size:18px; letter-spacing:.2px }
-    .muted{color:var(--muted)}
-    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-    @media (max-width: 900px){ .grid{ grid-template-columns:1fr; } }
+    .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font:700 12px var(--mono);color:#334155;box-shadow:inset 0 2px 0 rgba(255,255,255,.7)}
+    .btn{appearance:none;border:1px solid var(--line);background:#fff;color:#111827;border-radius:14px;padding:10px 14px;font-weight:800;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+    .btn:hover{transform:translateY(-1px)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-pri{background:linear-gradient(180deg,#1971c2,#184e77);color:#fff;border-color:#1971c2}
+    .btn-sec{background:#fff}
 
-    label{display:block; font:600 12px var(--mono); color:#b7bfd4; margin:8px 0 6px; letter-spacing:.02em}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    input, select{
-      width:100%; padding:12px 12px; color:var(--ink);
-      background: #0b0f18; border:1px solid #1a2236; border-radius: 14px; outline:none;
-      font-weight:700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
-      transition: .15s ease;
-    }
-    input:focus, select:focus{ border-color:#3f6bff; box-shadow: 0 0 0 4px rgba(63,107,255,.15)}
-    .btn{
-      appearance:none; border:0; border-radius:14px; padding:12px 14px; font-weight:800; cursor:pointer; transition:.15s;
-    }
-    .btn:disabled{opacity:.6; cursor:not-allowed}
-    .btn.primary{ color:#0b1320; background: linear-gradient(90deg, var(--neon), #97f0ff 60%); box-shadow: 0 8px 26px rgba(124,255,243,.25); }
-    .btn.alt{ color:#0b1320; background: linear-gradient(90deg, var(--amber), #ffe6a6); box-shadow: 0 8px 26px rgba(255,204,102,.2);}
-    .btn.ghost{ color:var(--ink); background:transparent; border:1px dashed #2a334d; }
+    main{max-width:1180px;margin:24px auto 60px;padding:0 18px}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px}
+    @media (max-width:1000px){.grid{grid-template-columns:1fr}}
 
-    .status{
-      margin-top:10px; font:600 12px var(--mono); color:var(--muted);
-      border:1px dashed #26314a; border-radius: 12px; padding:10px; word-break: break-all;
-      background: #0b0f18;
-    }
-    .status.ok{ color:#b5ffd2; border-color:#194b2f; background: linear-gradient(180deg, #0b1611, #0b1611) }
-    .status.err{ color:#ffc6ce; border-color:#4b1926; background: linear-gradient(180deg, #160b0e, #160b0e) }
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+    .card h2{margin:0 0 6px;font:900 18px var(--serif)}
+    .note{font:600 12px var(--mono);color:var(--muted)}
 
-    .cardTitle{ display:flex; align-items:center; justify-content:space-between; gap:10px }
-    .tag{ font:700 11px var(--mono); color:#091120; background: linear-gradient(90deg, #b6ff8a, #7cffbe); border-radius: 999px; padding:6px 10px }
-    .inline{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
-    .pill{ font:700 11px var(--mono); color:var(--muted); border:1px dashed #2b3450; border-radius:999px; padding:6px 10px; background:#0b0f18 }
-    .contrast{ color:#0b1320; background: linear-gradient(90deg, #a291ff, #e0d7ff); border-radius: 999px; padding:6px 10px; font:700 11px var(--mono); }
+    .rows{display:grid;gap:10px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:720px){.two{grid-template-columns:1fr}}
 
-    .skills{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
-    .skill{
-      border:1px solid #2a3350; background:#0c1220; color:#dfe6ff;
-      padding:8px 10px; border-radius:999px; font:700 12px var(--mono);
-      cursor:pointer; user-select:none;
-    }
-    .skill.active{ border-color:#4ea1ff; box-shadow:0 0 0 3px rgba(78,161,255,.15) inset; color:#adccff }
-    .list{ display:grid; gap:8px; margin-top:8px; }
-    .logline{ font:600 12px var(--mono); color:#c9d5ff; background:#0e1423; border:1px solid #243153; border-radius:12px; padding:10px }
-    .sm{ font-size:12px }
-    .mono{ font-family: var(--mono) }
+    label{font:800 11px var(--mono);color:#475569;letter-spacing:.06em}
+    input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;outline:none;font:800 14px var(--sans)}
+    input:focus{box-shadow:0 0 0 4px rgba(132,94,247,.15)}
+
+    .status{margin-top:10px;border:1px dashed var(--line);background:#fff;border-radius:14px;padding:12px;min-height:48px;display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);color:#475569}
+    .status.ok{border-color:rgba(47,158,68,.35);color:#2f9e44}
+    .status.err{border-color:rgba(224,49,49,.35);color:#e03131}
+
+    .handles{font:700 12px var(--mono);color:#0f172a;background:#f8fafc;border:1px dashed var(--line);border-radius:14px;padding:10px;word-break:break-all}
+
+    .list{display:grid;gap:10px}
+    .rowcard{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px}
+    .rowcard h4{margin:0;font:900 15px var(--serif)}
+
+    footer{max-width:1180px;margin:16px auto 40px;padding:0 18px;color:#64748b;font:700 12px var(--mono)}
   </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="orb"></div>
-    <div>
-      <h1>Secret Resume Filter</h1>
-      <div class="sub">Encrypted résumés · Employer sees just “fit / no”</div>
+  <header>
+    <div class="bar">
+      <div class="brand">
+        <div class="seal">FHE</div>
+        <div>
+          <div class="title">Hidden Code Quality</div>
+          <div class="subtitle">Aggregate-only · Zama FHEVM · Relayer 0.2.0</div>
+        </div>
+      </div>
+      <div class="row">
+        <span id="netChip" class="chip">Network: —</span>
+        <span id="addrChip" class="chip">Contract: —</span>
+        <button id="btnConnect" class="btn btn-pri">Connect Wallet</button>
+      </div>
     </div>
-  </div>
-  <div class="inline">
-    <span class="pill mono" id="netTag">Network: —</span>
-    <button id="btnConnect" class="chip">Connect Wallet</button>
-  </div>
-</header>
+  </header>
 
-<main>
-  <section class="hero">
-    <!-- Candidate -->
-    <article class="panel">
-      <div class="cardTitle">
-        <h2>Candidate · Apply Privately</h2>
-        <span class="tag">Encrypted client-side</span>
-      </div>
-      <p class="muted sm">Your attributes are encrypted locally using Zama Relayer SDK 0.2.0. The employer will only be able to decrypt the final verdict.</p>
-
-      <div class="grid">
-        <div>
-          <label>Position ID</label>
-          <input id="c_pos" type="number" min="1" placeholder="e.g. 101"/>
-        </div>
-        <div>
-          <label>Years of experience (0..255)</label>
-          <input id="c_exp" type="number" min="0" max="255" placeholder="e.g. 5"/>
-        </div>
-        <div>
-          <label>Education level (0..4)</label>
-          <select id="c_edu">
-            <option value="0">0 — None</option>
-            <option value="1">1 — High School</option>
-            <option value="2" selected>2 — Bachelor</option>
-            <option value="3">3 — Master</option>
-            <option value="4">4 — PhD</option>
-          </select>
-        </div>
-        <div>
-          <label>Expected salary (USD)</label>
-          <input id="c_salary" type="number" min="0" placeholder="e.g. 90000"/>
-        </div>
-      </div>
-
-      <label class="inline" style="margin-top:12px">Skills (bitmask)
-        <span class="pill">Requirement is “contains all”</span>
-      </label>
-      <div id="skills" class="skills">
-        <!-- 8 demo skills -> 16-bit mask still fine -->
-        <div class="skill" data-bit="0">Solidity</div>
-        <div class="skill" data-bit="1">TypeScript</div>
-        <div class="skill" data-bit="2">React</div>
-        <div class="skill" data-bit="3">Node</div>
-        <div class="skill" data-bit="4">DevOps</div>
-        <div class="skill" data-bit="5">Rust</div>
-        <div class="skill" data-bit="6">FHE</div>
-        <div class="skill" data-bit="7">Data Eng</div>
-      </div>
-
-      <div class="inline" style="margin-top:12px">
-        <button id="btnApply" class="btn primary">Submit Encrypted Application</button>
-        <span id="applyTx" class="pill mono">—</span>
-      </div>
-      <div id="applyLog" class="status">Waiting…</div>
-      <div class="muted sm" style="margin-top:8px">Note: Only the employer of this position can decrypt the verdict.</div>
-    </article>
-
-    <!-- Employer -->
-    <article class="panel">
-      <div class="cardTitle">
-        <h2>Employer · Manage Criteria & Verdicts</h2>
-        <span class="contrast mono" id="empTag">You: —</span>
-      </div>
-      <p class="muted sm">Create a position, set encrypted criteria, and decrypt application verdicts addressed to you.</p>
-
-      <div class="grid">
-        <div>
-          <label>Position ID</label>
-          <input id="e_pos" type="number" min="1" placeholder="e.g. 101"/>
-        </div>
-        <div class="inline" style="align-items:flex-end">
-          <button id="btnCreatePos" class="btn ghost">Create/Claim Position</button>
-          <span class="pill mono" id="ownerBadge">—</span>
-        </div>
-
-        <div>
-          <label>minExp (uint8)</label>
-          <input id="e_minExp" type="number" min="0" max="255" placeholder="e.g. 3"/>
-        </div>
-        <div>
-          <label>minEdu (uint8)</label>
-          <select id="e_minEdu">
-            <option value="0">0 — None</option>
-            <option value="1">1 — HS</option>
-            <option value="2" selected>2 — Bachelor</option>
-            <option value="3">3 — Master</option>
-            <option value="4">4 — PhD</option>
-          </select>
-        </div>
-        <div>
-          <label>requiredSkills (uint16 bitmask)</label>
-          <input id="e_reqSkills" type="number" min="0" max="65535" placeholder="e.g. 133 (bits)"/>
-        </div>
-        <div>
-          <label>maxSalary (uint32)</label>
-          <input id="e_maxSalary" type="number" min="0" placeholder="e.g. 120000"/>
-        </div>
-      </div>
-
-      <div class="inline" style="margin-top:12px">
-        <button id="btnSetEnc" class="btn primary">Set Encrypted Criteria</button>
-        <button id="btnSetPlain" class="btn alt">Set Plain (dev)</button>
-        <button id="btnPublic" class="btn ghost">Make Criteria Public</button>
-      </div>
-      <div id="adminLog" class="status">—</div>
-
-      <div style="margin-top:14px" class="cardTitle">
-        <h2>Applications · Decrypt Verdicts</h2>
-        <span class="pill mono" id="evtCount">0 items</span>
-      </div>
-      <div class="inline sm">
-        <span class="pill">Filter by Position ID</span>
-        <input id="f_pos" type="number" min="1" placeholder="e.g. 101" style="max-width:160px"/>
-        <button id="btnScan" class="btn ghost">Scan Events</button>
-      </div>
-      <div id="events" class="list"></div>
-    </article>
-  </section>
-
-  <section style="margin-top:24px" class="panel">
-    <div class="inline">
-      <span class="pill mono">Contract:</span>
-      <span class="pill mono" id="addr">0xCF991A8321746f1b4F6330d7Bbb090aA1daF3d07</span>
-      <span class="pill mono">Relayer: testnet</span>
-      <span class="pill mono" id="vers">SDK 0.2.0 · Ethers v6</span>
-    </div>
-  </section>
-</main>
-
-<!-- SDKs -->
-<script type="module" crossorigin src="https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js"></script>
-<script type="module" crossorigin src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm"></script>
-
-<script type="module">
-  import { BrowserProvider, Contract, Log, toBeHex } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm";
-  import { initSDK, createInstance, SepoliaConfig, generateKeypair } from "https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js";
-
-  // ===== Config =====
-  const CONTRACT_ADDRESS = "0x12D716b26D896adC8994eFe4b36f11EF37158D96";
-  const RELAYER_URL = "https://relayer.testnet.zama.cloud";
-  const CHAIN_ID_HEX = "0xaa36a7"; // Sepolia
-
-  // ABI (subset used by the app) — SecretResumeFilter
-  const abi = [
-    { type:"function", name:"version", inputs:[], outputs:[{type:"string"}], stateMutability:"pure" },
-    { type:"function", name:"createPosition", inputs:[{name:"positionId",type:"uint256"},{name:"employer",type:"address"}], outputs:[], stateMutability:"nonpayable" },
-    { type:"function", name:"setCriteriaEncrypted", inputs:[
-      {type:"uint256"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes"}
-    ], outputs:[], stateMutability:"nonpayable" },
-    { type:"function", name:"setCriteriaPlain", inputs:[
-      {type:"uint256"},{type:"uint8"},{type:"uint8"},{type:"uint16"},{type:"uint32"}
-    ], outputs:[], stateMutability:"nonpayable" },
-    { type:"function", name:"makeCriteriaPublic", inputs:[{type:"uint256"}], outputs:[], stateMutability:"nonpayable" },
-    { type:"function", name:"getCriteriaHandles", inputs:[{type:"uint256"}], outputs:[
-      {type:"bytes32"},{type:"bytes32"},{type:"bytes32"},{type:"bytes32"},{type:"address"}
-    ], stateMutability:"view" },
-    { type:"function", name:"evaluateApplication", inputs:[
-      {type:"uint256"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes32"}, {type:"bytes"}
-    ], outputs:[{type:"bytes1"}], stateMutability:"nonpayable" },
-
-    // Events
-    { type:"event", name:"PositionCreated", inputs:[
-      {indexed:true, name:"positionId", type:"uint256"},
-      {indexed:true, name:"employer", type:"address"}
-    ]},
-    { type:"event", name:"CriteriaUpdated", inputs:[
-      {indexed:true, name:"positionId", type:"uint256"},
-      {indexed:false, name:"minExpH", type:"bytes32"},
-      {indexed:false, name:"minEduH", type:"bytes32"},
-      {indexed:false, name:"requiredSkillsH", type:"bytes32"},
-      {indexed:false, name:"maxSalaryH", type:"bytes32"}
-    ]},
-    { type:"event", name:"ApplicationEvaluated", inputs:[
-      {indexed:true, name:"positionId", type:"uint256"},
-      {indexed:true, name:"candidate", type:"address"},
-      {indexed:true, name:"employer", type:"address"},
-      {indexed:false, name:"verdictHandle", type:"bytes32"}
-    ]},
-  ];
-
-  // ===== UI elements =====
-  const $ = id => document.getElementById(id);
-  const els = {
-    netTag: $("netTag"), btnConnect: $("btnConnect"), empTag: $("empTag"),
-    addr: $("addr"), vers: $("vers"), ownerBadge: $("ownerBadge"),
-    // candidate
-    c_pos: $("c_pos"), c_exp: $("c_exp"), c_edu: $("c_edu"), c_salary: $("c_salary"),
-    skills: $("skills"), btnApply: $("btnApply"), applyLog: $("applyLog"), applyTx: $("applyTx"),
-    // employer
-    e_pos: $("e_pos"), e_minExp: $("e_minExp"), e_minEdu: $("e_minEdu"),
-    e_reqSkills: $("e_reqSkills"), e_maxSalary: $("e_maxSalary"),
-    btnCreatePos: $("btnCreatePos"), btnSetEnc: $("btnSetEnc"),
-    btnSetPlain: $("btnSetPlain"), btnPublic: $("btnPublic"), adminLog: $("adminLog"),
-    // events
-    evtCount: $("evtCount"), events: $("events"),
-    f_pos: $("f_pos"), btnScan: $("btnScan"),
-  };
-  els.addr.textContent = CONTRACT_ADDRESS;
-
-  // ===== State =====
-  let provider, signer, user, contract, relayer;
-
-  // ===== Helpers =====
-  const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
-  const ok = (el, text) => { el.className="status ok"; el.textContent=text; };
-  const err= (el, text) => { el.className="status err"; el.textContent=text; };
-  const info= (el, text)=> { el.className="status"; el.textContent=text; };
-  const toU8  = n => (Number.isInteger(n)&&n>=0&&n<=255);
-  const toU16 = n => (Number.isInteger(n)&&n>=0&&n<=65535);
-  const toU32 = n => (Number.isInteger(n)&&n>=0&&n<=4294967295);
-
-  // Build skills bitmask from UI
-  function readSkillMask(){
-    let mask = 0;
-    [...els.skills.querySelectorAll('.skill.active')].forEach(s=>{
-      mask |= (1 << Number(s.dataset.bit));
-    });
-    return mask >>> 0;
-  }
-  // Click to toggle skills
-  els.skills.addEventListener('click', (e)=>{
-    const t = e.target.closest('.skill'); if(!t) return;
-    t.classList.toggle('active');
-  });
-
-  // ===== Connect =====
-  els.btnConnect.onclick = async () => {
-    try{
-      if(!window.ethereum) throw new Error("MetaMask not found");
-      provider = new BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const net = await provider.getNetwork();
-      els.netTag.textContent = `Network: ${String(net.chainId)}`;
-      if(net.chainId !== 11155111n){
-        await provider.send("wallet_switchEthereumChain", [{ chainId: CHAIN_ID_HEX }]);
-      }
-      signer = await provider.getSigner();
-      user = await signer.getAddress();
-      contract = new Contract(CONTRACT_ADDRESS, abi, signer);
-
-      els.btnConnect.textContent = short(user);
-      els.empTag.textContent = "You: " + short(user);
-
-      // Relayer
-      info(els.adminLog, "Bootstrapping Relayer…");
-      await initSDK();
-      relayer = await createInstance({ ...SepoliaConfig, relayerUrl: RELAYER_URL, network: window.ethereum, debug:true });
-      ok(els.adminLog, "Relayer ready ✓");
-
-    }catch(e){
-      err(els.adminLog, e.message || String(e));
-    }
-  };
-
-  // ===== Employer: create/claim position =====
-  els.btnCreatePos.onclick = async ()=>{
-    try{
-      if(!contract) await els.btnConnect.onclick();
-      const pos = Number(els.e_pos.value || 0);
-      if(!(pos>0)) throw new Error("Enter Position ID");
-      const tx = await contract.createPosition(pos, user);
-      info(els.adminLog, `TX: ${tx.hash}`);
-      await tx.wait();
-      ok(els.adminLog, "Position created/claimed ✓");
-      els.ownerBadge.textContent = "Employer: " + short(user);
-    }catch(e){ err(els.adminLog, e.message || String(e)); }
-  };
-
-  // ===== Employer: set encrypted criteria =====
-  els.btnSetEnc.onclick = async ()=>{
-    try{
-      if(!relayer || !contract) await els.btnConnect.onclick();
-      const pos = Number(els.e_pos.value || 0);
-      const minExp = Number(els.e_minExp.value || 0);
-      const minEdu = Number(els.e_minEdu.value || 0);
-      const reqSkills = Number(els.e_reqSkills.value || 0);
-      const maxSalary = Number(els.e_maxSalary.value || 0);
-      if(!(pos>0)) throw new Error("Enter Position ID");
-      if(!toU8(minExp) || !toU8(minEdu) || !toU16(reqSkills) || !toU32(maxSalary)) throw new Error("Range error");
-
-      info(els.adminLog,"Encrypting criteria…");
-      const buf = relayer.createEncryptedInput(CONTRACT_ADDRESS, user);
-      buf.add8(minExp);
-      buf.add8(minEdu);
-      buf.add16(reqSkills);
-      buf.add32(maxSalary);
-      const { handles, inputProof } = await buf.encrypt();
-
-      // static call (may fail on some RPCs; safe to proceed anyway)
-      try{ await contract.setCriteriaEncrypted.staticCall(pos, handles[0], handles[1], handles[2], handles[3], inputProof); }catch{}
-
-      const tx = await contract.setCriteriaEncrypted(pos, handles[0], handles[1], handles[2], handles[3], inputProof);
-      info(els.adminLog, `TX: ${tx.hash}`);
-      await tx.wait();
-      ok(els.adminLog, "Encrypted criteria set ✓");
-    }catch(e){ err(els.adminLog, e.message || String(e)); }
-  };
-
-  // ===== Employer: set plain criteria (dev) =====
-  els.btnSetPlain.onclick = async ()=>{
-    try{
-      if(!contract) await els.btnConnect.onclick();
-      const pos = Number(els.e_pos.value || 0);
-      const minExp = Number(els.e_minExp.value || 0);
-      const minEdu = Number(els.e_minEdu.value || 0);
-      const reqSkills = Number(els.e_reqSkills.value || 0);
-      const maxSalary = Number(els.e_maxSalary.value || 0);
-      if(!(pos>0)) throw new Error("Enter Position ID");
-      if(!toU8(minExp) || !toU8(minEdu) || !toU16(reqSkills) || !toU32(maxSalary)) throw new Error("Range error");
-
-      const tx = await contract.setCriteriaPlain(pos, minExp, minEdu, reqSkills, maxSalary);
-      info(els.adminLog, `TX: ${tx.hash}`);
-      await tx.wait();
-      ok(els.adminLog, "Plain criteria set ✓");
-    }catch(e){ err(els.adminLog, e.message || String(e)); }
-  };
-
-  // ===== Employer: make criteria public (optional demo)
-  els.btnPublic.onclick = async ()=>{
-    try{
-      if(!contract) await els.btnConnect.onclick();
-      const pos = Number(els.e_pos.value || 0);
-      if(!(pos>0)) throw new Error("Enter Position ID");
-      const tx = await contract.makeCriteriaPublic(pos);
-      info(els.adminLog, `TX: ${tx.hash}`);
-      await tx.wait();
-      ok(els.adminLog, "Criteria are publicly decryptable ✓");
-    }catch(e){ err(els.adminLog, e.message || String(e)); }
-  };
-
-  // ===== Candidate: submit encrypted application =====
-  els.btnApply.onclick = async ()=>{
-    try{
-      if(!relayer || !contract) await els.btnConnect.onclick();
-      const pos = Number(els.c_pos.value || 0);
-      const years = Number(els.c_exp.value || 0);
-      const edu = Number(els.c_edu.value || 0);
-      const salary = Number(els.c_salary.value || 0);
-      const skillsMask = readSkillMask();
-
-      if(!(pos>0)) throw new Error("Enter Position ID");
-      if(!toU8(years) || !toU8(edu) || !toU16(skillsMask) || !toU32(salary)) throw new Error("Range error");
-
-      info(els.applyLog, "Encrypting application…");
-      const buf = relayer.createEncryptedInput(CONTRACT_ADDRESS, user);
-      buf.add8(years);
-      buf.add8(edu);
-      buf.add16(skillsMask);
-      buf.add32(salary);
-      const { handles, inputProof } = await buf.encrypt();
-
-      try{ await contract.evaluateApplication.staticCall(pos, handles[0], handles[1], handles[2], handles[3], inputProof); }catch{}
-
-      const tx = await contract.evaluateApplication(pos, handles[0], handles[1], handles[2], handles[3], inputProof);
-      els.applyTx.textContent = tx.hash;
-      info(els.applyLog, "Waiting for receipt…");
-      const rcpt = await tx.wait();
-
-      // We emit ApplicationEvaluated; employer will decrypt. Candidate cannot decrypt (ACL)
-      ok(els.applyLog, "Application submitted ✓ • Employer will see the verdict");
-    }catch(e){ err(els.applyLog, e.message || String(e)); }
-  };
-
-  // ===== Employer: scan + decrypt ApplicationEvaluated events =====
-  els.btnScan.onclick = async ()=>{
-    try{
-      if(!contract) await els.btnConnect.onclick();
-      const filterPos = Number(els.f_pos.value || 0);
-      const from = 0n; // you may set recent block here
-      const to = "latest";
-
-      // Build topic filter for ApplicationEvaluated(positionId?, candidate?, employer=you)
-      const iface = new Contract(CONTRACT_ADDRESS, abi, signer).interface;
-      const topic = iface.getEvent("ApplicationEvaluated").topicHash;
-      const posTopic = filterPos>0 ? toBeHex(BigInt(filterPos), 32) : null;
-      const empTopic = toBeHex(BigInt(user), 32); // ethers handles address → topic internally, but we force hex32
-      // Better: use address topic with left-padded 32 bytes
-      const padAddr = (addr)=>"0x"+"0".repeat(24)+addr.slice(2).toLowerCase();
-      const topics = [
-        topic,
-        posTopic,             // indexed positionId
-        null,                 // indexed candidate
-        padAddr(user)         // indexed employer
-      ];
-
-      const logs = await provider.getLogs({ address: CONTRACT_ADDRESS, fromBlock: from, toBlock: to, topics });
-      els.evtCount.textContent = `${logs.length} items`;
-      els.events.innerHTML = "";
-
-      if(logs.length===0){ els.events.innerHTML = `<div class="logline">No events found for employer ${short(user)}${filterPos>0?` · position ${filterPos}`:""}</div>`; return; }
-
-      for(const l of logs.slice(-25).reverse()){ // show last 25
-        const parsed = iface.parseLog(l);
-        const posId = Number(parsed.args.positionId);
-        const cand = parsed.args.candidate;
-        const vH = parsed.args.verdictHandle;
-
-        const row = document.createElement('div');
-        row.className = "logline";
-        row.innerHTML = `
-          <div class="inline" style="justify-content:space-between; gap:12px">
+  <main>
+    <section class="grid">
+      <!-- Submit metrics & publish sum -->
+      <article class="card">
+        <h2>Submit Encrypted Metrics</h2>
+        <p class="note">coverage/style higher is better; complexity/bugs lower is better. Inputs are encrypted; only the aggregate sum is public.</p>
+        <div class="rows">
+          <div class="two">
             <div>
-              <div><b>Position:</b> ${posId}</div>
-              <div class="sm muted">Candidate: ${short(cand)} · Handle: <span class="mono">${vH}</span></div>
+              <label>Coverage (0..100)</label>
+              <input id="cov" type="number" min="0" max="100" placeholder="82"/>
             </div>
-            <div class="inline">
-              <button class="btn primary" data-h="${vH}" data-pos="${posId}">Decrypt</button>
+            <div>
+              <label>Style (0..100)</label>
+              <input id="style" type="number" min="0" max="100" placeholder="76"/>
             </div>
           </div>
-          <div class="status" style="margin-top:8px">Waiting…</div>
-        `;
-        els.events.appendChild(row);
+          <div class="two">
+            <div>
+              <label>Complexity (0..100)</label>
+              <input id="compl" type="number" min="0" max="100" placeholder="28"/>
+            </div>
+            <div>
+              <label>Bugs (0..100)</label>
+              <input id="bugs" type="number" min="0" max="100" placeholder="4"/>
+            </div>
+          </div>
+          <div class="row">
+            <button id="btnSubmit" class="btn btn-pri">Submit Metrics (Encrypted)</button>
+            <span id="subTx" class="chip">TX: —</span>
+          </div>
+          <div id="subLog" class="status">Ready</div>
+        </div>
 
-        const btn = row.querySelector("button");
-        const box = row.querySelector(".status");
-        btn.onclick = async ()=>{
-          try{
-            info(box, "EIP-712 signing…");
-            const kp = await generateKeypair();
-            const startTs = Math.floor(Date.now()/1000).toString();
-            const days = "7";
-            const eip = relayer.createEIP712(kp.publicKey, [CONTRACT_ADDRESS], startTs, days);
-            const sig = await signer.signTypedData(
-              eip.domain,
-              { UserDecryptRequestVerification: eip.types.UserDecryptRequestVerification },
-              eip.message
-            );
+        <div style="height:10px"></div>
+        <h2>Publish Aggregate</h2>
+        <p class="note">Publishes the encrypted <b>sumScore</b> for public decryption. Average is computed off‑chain as <code>sum_dec / submissions</code>.</p>
+        <div class="row">
+          <button id="btnPublish" class="btn btn-sec">Publish Sum (public)</button>
+          <button id="btnDecrypt" class="btn btn-sec">Decrypt Sum</button>
+          <span id="avgChip" class="chip">Avg: —</span>
+        </div>
+        <div id="pubLog" class="status">—</div>
+      </article>
 
-            info(box, "Decrypting verdict…");
-            const pairs = [{ handle: vH, contractAddress: CONTRACT_ADDRESS }];
-            const out = await relayer.userDecrypt(pairs, kp.privateKey, kp.publicKey, sig.replace("0x",""),
-                                                  [CONTRACT_ADDRESS], user, startTs, days);
-            let v = out[vH];
-            if(v===undefined){
-              const k = Object.keys(out).find(k=>k.toLowerCase()===vH.toLowerCase());
-              v = k ? out[k] : undefined;
-            }
-            // verdict is boolean-ish (ebool). Normalize:
-            const yes = (v===true || v==="true" || v===1 || v==="1");
-            if(yes){ ok(box, "✅ FIT"); } else { err(box, "❌ NO FIT"); }
-          }catch(e){ err(box, e.message || String(e)); }
-        };
-      }
-    }catch(e){
-      els.events.innerHTML = `<div class="logline">Scan error: ${e.message||e}</div>`;
+      <!-- Policy & aggregates -->
+      <article class="card">
+        <h2>Policy (Thresholds)</h2>
+        <p class="note">All thresholds are encrypted by the owner: <b>cov ≥ min</b>, <b>style ≥ min</b>, <b>compl ≤ max</b>, <b>bugs ≤ max</b>. Each satisfied check adds 25 points.</p>
+        <div class="rows">
+          <div class="two">
+            <div>
+              <label>tCovMin (0..100)</label>
+              <input id="tCovMin" type="number" min="0" max="100" placeholder="70"/>
+            </div>
+            <div>
+              <label>tStyleMin (0..100)</label>
+              <input id="tStyleMin" type="number" min="0" max="100" placeholder="70"/>
+            </div>
+          </div>
+          <div class="two">
+            <div>
+              <label>tComplMax (0..100)</label>
+              <input id="tComplMax" type="number" min="0" max="100" placeholder="35"/>
+            </div>
+            <div>
+              <label>tBugsMax (0..100)</label>
+              <input id="tBugsMax" type="number" min="0" max="100" placeholder="10"/>
+            </div>
+          </div>
+          <div class="row">
+            <button id="btnSetPolEnc" class="btn btn-pri">Set Encrypted</button>
+            <button id="btnMakePolPublic" class="btn btn-sec">Make Policy Public</button>
+          </div>
+          <div id="polHandles" class="handles">tCovMin: —\ntStyleMin: —\ntComplMax: —\ntBugsMax: —</div>
+          <div id="adminLog" class="status">Owner-only actions. Connect wallet.</div>
+        </div>
+
+        <div style="height:10px"></div>
+        <h2>Aggregates</h2>
+        <div class="rows">
+          <div id="aggHandles" class="handles">sumScore: —\nsubmissions: —</div>
+          <div class="row"><button id="btnRefreshAgg" class="btn btn-sec">Refresh</button></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    Built for Zama FHEVM • Ethers v6 • Relayer SDK 0.2.0 · Contract: <span id="addrFoot"></span>
+  </footer>
+
+  <!-- SDKs (ESM) -->
+  <script type="module" crossorigin src="https://cdn.zama.org/relayer-sdk-js/0.3.0-5/relayer-sdk-js.js"></script>
+  <script type="module" crossorigin src="https://cdn.jsdelivr.net/npm/ethers@6.15.0/+esm"></script>
+
+  <script type="module">
+    import { BrowserProvider, Contract } from "https://cdn.jsdelivr.net/npm/ethers@6.15.0/+esm";
+    import { initSDK, createInstance, SepoliaConfig } from "https://cdn.zama.org/relayer-sdk-js/0.3.0-5/relayer-sdk-js.js";
+
+    // ===== App Config =====
+    const CONTRACT_ADDRESS = "0x4A8b95270369De027a34E02b49FFe1D49d97112f"; // deployed
+    const RELAYER_URL = "https://relayer.testnet.zama.org";
+    const CHAIN_ID_HEX = "0xaa36a7"; // Sepolia
+
+    // ===== ABI (HiddenCodeQualityAggregate v2: no division) =====
+    const abi = [
+      { inputs: [], name: "version", outputs: [{ type: "string" }], stateMutability: "pure", type: "function" },
+      { inputs: [], name: "owner", outputs: [{ type: "address" }], stateMutability: "view", type: "function" },
+
+      { inputs: [ { name: "tCovMinExt", type: "bytes32" }, { name: "tStyleMinExt", type: "bytes32" }, { name: "tComplMaxExt", type: "bytes32" }, { name: "tBugsMaxExt", type: "bytes32" }, { name: "proof", type: "bytes" } ], name: "setPolicyEncrypted", outputs: [], stateMutability: "nonpayable", type: "function" },
+      { inputs: [], name: "makePolicyPublic", outputs: [], stateMutability: "nonpayable", type: "function" },
+      { inputs: [], name: "getPolicyHandles", outputs: [ { type: "bytes32" }, { type: "bytes32" }, { type: "bytes32" }, { type: "bytes32" } ], stateMutability: "view", type: "function" },
+
+      { inputs: [ { name: "covExt", type: "bytes32" }, { name: "styleExt", type: "bytes32" }, { name: "complExt", type: "bytes32" }, { name: "bugsExt", type: "bytes32" }, { name: "proof", type: "bytes" } ], name: "submitMetrics", outputs: [], stateMutability: "nonpayable", type: "function" },
+
+      { inputs: [], name: "publishSum", outputs: [ { type: "bytes32" } ], stateMutability: "nonpayable", type: "function" },
+      { inputs: [], name: "getAggregateHandles", outputs: [ { type: "bytes32" }, { type: "uint16" } ], stateMutability: "view", type: "function" }
+    ];
+
+    // ===== Elements =====
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      btnConnect: $("btnConnect"), netChip: $("netChip"), addrChip: $("addrChip"), addrFoot: $("addrFoot"),
+      cov: $("cov"), style: $("style"), compl: $("compl"), bugs: $("bugs"), btnSubmit: $("btnSubmit"), subLog: $("subLog"), subTx: $("subTx"),
+      btnPublish: $("btnPublish"), btnDecrypt: $("btnDecrypt"), pubLog: $("pubLog"), avgChip: $("avgChip"),
+      tCovMin: $("tCovMin"), tStyleMin: $("tStyleMin"), tComplMax: $("tComplMax"), tBugsMax: $("tBugsMax"), btnSetPolEnc: $("btnSetPolEnc"), btnMakePolPublic: $("btnMakePolPublic"), polHandles: $("polHandles"), adminLog: $("adminLog"),
+      aggHandles: $("aggHandles"), btnRefreshAgg: $("btnRefreshAgg"),
+    };
+
+    els.addrChip.textContent = `Contract: ${CONTRACT_ADDRESS}`;
+    els.addrFoot.textContent = CONTRACT_ADDRESS;
+
+    // ===== State =====
+    let provider, signer, user, contract, relayer, isOwner=false;
+    let lastSumHandle = null; // cache after publish
+
+    const LOG = {
+      info:(el, s) => { el.textContent = s; el.className = "status"; console.log("[INFO]", s); },
+      ok:(el, s)   => { el.textContent = s; el.className = "status ok"; console.log("[OK]", s); },
+      err:(el, s)  => { el.textContent = s; el.className = "status err"; console.error("[ERR]", s); },
+    };
+
+    // ===== Bind =====
+    els.btnConnect.addEventListener('click', connect);
+    els.btnSubmit.addEventListener('click', submitMetrics);
+    els.btnPublish.addEventListener('click', publishSum);
+    els.btnDecrypt.addEventListener('click', decryptSum);
+    els.btnSetPolEnc.addEventListener('click', setPolicyEnc);
+    els.btnMakePolPublic.addEventListener('click', makePolicyPublic);
+    els.btnRefreshAgg.addEventListener('click', refreshAggregates);
+
+    // ===== Connect =====
+    async function connect(){
+      try{
+        if(!window.ethereum) throw new Error("MetaMask not found");
+        provider = new BrowserProvider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        let net = await provider.getNetwork();
+        if(net.chainId !== 11155111n){ await provider.send('wallet_switchEthereumChain', [{ chainId: CHAIN_ID_HEX }]); net = await provider.getNetwork(); }
+        els.netChip.textContent = `Network: Sepolia (${String(net.chainId)})`;
+
+        signer = await provider.getSigner();
+        user = await signer.getAddress();
+        els.btnConnect.textContent = `${user.slice(0,6)}…${user.slice(-4)}`;
+        els.btnConnect.disabled = true;
+
+        contract = new Contract(CONTRACT_ADDRESS, abi, signer);
+
+        await initSDK();
+        relayer = await createInstance({ ...SepoliaConfig, relayerUrl: RELAYER_URL, network: window.ethereum, debug:true });
+
+        try{ const o = await contract.owner(); isOwner = (o.toLowerCase()===user.toLowerCase()); }catch{}
+        els.adminLog.textContent = isOwner ? "Owner detected ✓" : "You are not the owner";
+        await showPolicyHandles();
+        await refreshAggregates();
+      }catch(e){ alert(e.message || String(e)); }
     }
-  };
 
-  // Network badge
-  (async ()=>{
-    try{
-      if(window.ethereum){
-        const net = await (new BrowserProvider(window.ethereum)).getNetwork();
-        els.netTag.textContent = net.chainId===11155111n ? "Network: Sepolia" : `Network: ${String(net.chainId)}`;
-      }
-    }catch{}
-  })();
-</script>
+    // ===== Helpers =====
+    const in01 = (n)=>{ const x = Number(n); return Number.isFinite(x) && x>=0 && x<=100; };
+
+    async function showPolicyHandles(){
+      try{ const [a,b,c,d] = await contract.getPolicyHandles(); els.polHandles.textContent = `tCovMin: ${a}\ntStyleMin: ${b}\ntComplMax: ${c}\ntBugsMax: ${d}`; }catch{}
+    }
+
+    async function refreshAggregates(){
+      try{ const [sumH, cnt] = await contract.getAggregateHandles(); els.aggHandles.textContent = `sumScore: ${sumH}\nsubmissions: ${cnt}`; }catch(e){ console.error(e); }
+    }
+
+    // ===== Admin: Policy =====
+    async function setPolicyEnc(){
+      try{
+        if(!isOwner) throw new Error('Owner only');
+        const a = Number(els.tCovMin.value||"0"), b = Number(els.tStyleMin.value||"0"), c = Number(els.tComplMax.value||"0"), d = Number(els.tBugsMax.value||"0");
+        if(!in01(a)||!in01(b)||!in01(c)||!in01(d)) throw new Error('0..100 only');
+        LOG.info(els.adminLog, 'Encrypting policy…');
+        const buf = relayer.createEncryptedInput(CONTRACT_ADDRESS, user);
+        buf.add16(a); buf.add16(b); buf.add16(c); buf.add16(d);
+        const { handles, inputProof } = await buf.encrypt();
+        try{ await contract.setPolicyEncrypted.staticCall(handles[0], handles[1], handles[2], handles[3], inputProof); }catch{}
+        const tx = await contract.setPolicyEncrypted(handles[0], handles[1], handles[2], handles[3], inputProof);
+        els.adminLog.textContent = `TX: ${tx.hash}`;
+        await tx.wait();
+        LOG.ok(els.adminLog, 'Policy set (encrypted) ✓');
+        await showPolicyHandles();
+      }catch(e){ LOG.err(els.adminLog, e.message || String(e)); }
+    }
+
+    async function makePolicyPublic(){
+      try{
+        if(!isOwner) throw new Error('Owner only');
+        const tx = await contract.makePolicyPublic();
+        els.adminLog.textContent = `TX: ${tx.hash}`;
+        await tx.wait();
+        LOG.ok(els.adminLog, 'Policy marked public ✓');
+      }catch(e){ LOG.err(els.adminLog, e.message || String(e)); }
+    }
+
+    // ===== Submit metrics =====
+    async function submitMetrics(){
+      try{
+        if(!contract) await connect();
+        const cov = Number(els.cov.value||"0"), style = Number(els.style.value||"0"), compl = Number(els.compl.value||"0"), bugs = Number(els.bugs.value||"0");
+        if(!in01(cov)||!in01(style)||!in01(compl)||!in01(bugs)) throw new Error('Inputs must be 0..100');
+        LOG.info(els.subLog, 'Encrypting metrics…');
+        const buf = relayer.createEncryptedInput(CONTRACT_ADDRESS, user);
+        buf.add16(cov); buf.add16(style); buf.add16(compl); buf.add16(bugs);
+        const { handles, inputProof } = await buf.encrypt();
+        try{ await contract.submitMetrics.staticCall(handles[0], handles[1], handles[2], handles[3], inputProof); }catch{}
+        const tx = await contract.submitMetrics(handles[0], handles[1], handles[2], handles[3], inputProof);
+        els.subTx.textContent = `TX: ${tx.hash}`;
+        await tx.wait();
+        LOG.ok(els.subLog, 'Metrics submitted ✓');
+        await refreshAggregates();
+      }catch(e){ LOG.err(els.subLog, e.message || String(e)); }
+    }
+
+    // ===== Publish & Decrypt sum =====
+    async function publishSum(){
+      try{
+        LOG.info(els.pubLog, 'Publishing sum…');
+        const tx = await contract.publishSum();
+        els.pubLog.textContent = `TX: ${tx.hash}`;
+        await tx.wait();
+        const [sumH] = await contract.getAggregateHandles();
+        lastSumHandle = sumH;
+        LOG.ok(els.pubLog, 'Published ✓  (handle cached)');
+        els.avgChip.textContent = 'Avg: — (decrypt first)';
+      }catch(e){ LOG.err(els.pubLog, e.message || String(e)); }
+    }
+
+    async function decryptSum(){
+      try{
+        const [sumH, cnt] = await contract.getAggregateHandles();
+        const handle = lastSumHandle || sumH;
+        if(!handle || handle === '0x0000000000000000000000000000000000000000000000000000000000000000'){
+          LOG.info(els.pubLog, 'No published sum yet — click "Publish Sum"');
+          return;
+        }
+        const pairs = [{ handle: String(handle), contractAddress: CONTRACT_ADDRESS }];
+        let out;
+        try{ out = await relayer.publicDecrypt(pairs); }
+        catch(e1){ try{ out = await relayer.publicDecrypt([String(handle)]); } catch(e2){ throw e1; } }
+        let v = out[handle] ?? out[String(handle)] ?? (Array.isArray(out)? out[0] : undefined);
+        if(v === undefined){ LOG.err(els.pubLog, 'Decrypt failed'); return; }
+        const sumDec = Number(v);
+        if(cnt === 0){ LOG.info(els.pubLog, 'No submissions'); els.avgChip.textContent = 'Avg: —'; return; }
+        const avg = sumDec / Number(cnt);
+        els.avgChip.textContent = `Avg: ${avg.toFixed(2)}`;
+        LOG.ok(els.pubLog, `Decrypted sum = ${sumDec}, submissions = ${cnt}`);
+      }catch(e){ LOG.err(els.pubLog, e.message || String(e)); }
+    }
+  </script>
 </body>
 </html>
